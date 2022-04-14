@@ -18,7 +18,10 @@ class NanoCore:
 
     def __des_decrypt(self, data):
         cipher = DES.new(key=self.des_key, iv=self.des_iv, mode=DES.MODE_CBC)
-        return unpad(cipher.decrypt(data), DES.block_size)
+        dec_data = cipher.decrypt(data)
+        if len(dec_data) == 0:
+            return b''
+        return unpad(dec_data, DES.block_size)
 
     def __bool_to_byte(self, bool):
         return b'\x01' if bool else b'\x00'
