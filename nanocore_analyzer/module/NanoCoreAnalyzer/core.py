@@ -125,38 +125,41 @@ class NanoCore:
         position = f.tell()
         while payload_len > position:
             type_num = int.from_bytes(f.read(1), 'little')
-            nanocore_type = NanoCoreType(type_num)
+            try:
+                nanocore_type = NanoCoreType(type_num)
+                if nanocore_type == NanoCoreType.BOOL:
+                    value = self.__bool_from_byte(f.read(1))
+                elif nanocore_type == NanoCoreType.BYTE:
+                    value = f.read(1)
+                elif nanocore_type == NanoCoreType.BYTEARRAY:
+                    data_len = int.from_bytes(f.read(4), 'little')
+                    value = f.read(data_len)
+                elif nanocore_type == NanoCoreType.INT or nanocore_type == NanoCoreType.UINT:
+                    value = int.from_bytes(f.read(4), 'little')
+                elif nanocore_type == NanoCoreType.LONG or nanocore_type == NanoCoreType.ULONG:
+                    value = int.from_bytes(f.read(8), 'little')
+                elif nanocore_type == NanoCoreType.SHORT or nanocore_type == NanoCoreType.USHORT:
+                    value = int.from_bytes(f.read(2), 'little')
+                elif nanocore_type == NanoCoreType.FLOAT:
+                    value = float(int.from_bytes(f.read(4), 'little'))
+                elif nanocore_type == NanoCoreType.STRING or nanocore_type == NanoCoreType.VERSION:
+                    data_len = int.from_bytes(f.read(1), 'little')
+                    value = f.read(data_len).decode()
+                elif nanocore_type == NanoCoreType.DATETIME:
+                    ticks = int.from_bytes(f.read(8), 'little')
+                    value = self.__deserialize_datetime(ticks)
+                elif nanocore_type == NanoCoreType.GUID:
+                    value = uuid.UUID(bytes_le=f.read(16))
+                else:  # TODO: Other Types
+                    nanocore_type = NanoCoreType.UNKNOWN
+                    value = f.read()
 
-            if nanocore_type == NanoCoreType.BOOL:
-                value = self.__bool_from_byte(f.read(1))
-            elif nanocore_type == NanoCoreType.BYTE:
-                value = f.read(1)
-            elif nanocore_type == NanoCoreType.BYTEARRAY:
-                data_len = int.from_bytes(f.read(4), 'little')
-                value = f.read(data_len)
-            elif nanocore_type == NanoCoreType.INT or nanocore_type == NanoCoreType.UINT:
-                value = int.from_bytes(f.read(4), 'little')
-            elif nanocore_type == NanoCoreType.LONG or nanocore_type == NanoCoreType.ULONG:
-                value = int.from_bytes(f.read(8), 'little')
-            elif nanocore_type == NanoCoreType.SHORT or nanocore_type == NanoCoreType.USHORT:
-                value = int.from_bytes(f.read(2), 'little')
-            elif nanocore_type == NanoCoreType.FLOAT:
-                value = float(int.from_bytes(f.read(4), 'little'))
-            elif nanocore_type == NanoCoreType.STRING or nanocore_type == NanoCoreType.VERSION:
-                data_len = int.from_bytes(f.read(1), 'little')
-                value = f.read(data_len).decode()
-            elif nanocore_type == NanoCoreType.DATETIME:
-                ticks = int.from_bytes(f.read(8), 'little')
-                value = self.__deserialize_datetime(ticks)
-            elif nanocore_type == NanoCoreType.GUID:
-                value = uuid.UUID(bytes_le=f.read(16))
-            else:  # TODO: Other Types
-                nanocore_type = NanoCoreType.UNKNOWN
-                value = f.read()
+                if position == f.tell():
+                    break
+                position = f.tell()
+                params.append({'type': nanocore_type, 'value': value})
 
-            if position == f.tell():
-                break
-            position = f.tell()
-            params.append({'type': nanocore_type, 'value': value})
+            except ValueError:
+                return None
         f.close()
         return {'uuid': guid, 'compressed_mode': compressed_mode, 'flags': [flag1, flag2], 'params': params}
